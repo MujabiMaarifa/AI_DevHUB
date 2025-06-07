@@ -13,4 +13,12 @@ from sklearn.model_selection import validation_curve
 
 #short term stock data 
 data = yf.download('AAPL', start='2025-05-01')
-print(data)
+# print(data)
+
+# tream data
+new_data = data.tail()
+print(new_data)
+# check the number of rows and columns and the null values
+print("\n\n")
+print(new_data.info())
+
