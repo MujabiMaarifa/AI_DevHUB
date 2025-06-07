@@ -53,7 +53,8 @@ Use historical stock data to predict the next day's closing price.
 
 Stock market data from Yahoo Finance (retrieved using the `yfinance` Python library) **Instructions:** 
 
-● Select a stock (e.g., Apple, Tesla). 
+● Select a stock (e.g., Apple, Tesla)
+--> use ticker symbols to specify the stocks-(its like a unique identifier)
 
 ● Load historical data using the `yfinance` library. 
 
