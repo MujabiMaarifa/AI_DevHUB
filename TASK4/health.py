@@ -29,7 +29,7 @@ def health_query_response(prompt):
     return response.choices[0].message.content.strip()
 
 if __name__ == "__main__":
-    print("\n🩺 Hello Health Assistant AI Chatbot \n Feel free to ask for anything concering your health\n")
+    print("\n🩺 Hello Health Assistant AI Chatbot Feel free to ask for anything concering your health\n")
     while True:
         user_query = input("User: ")
         if user_query.lower() in ["exit", "quit", "bye", "q"]:

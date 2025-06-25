@@ -89,7 +89,9 @@ Heart Disease UCI Dataset (available on Kaggle)
 
 ● Train a classification model (Logistic Regression or Decision Tree). 
 
-● Evaluate using metrics: accuracy, ROC curve, and confusion matrix. ● Highlight important features affecting prediction. 
+● Evaluate using metrics: accuracy, ROC curve, and confusion matrix.
+
+● Highlight important features affecting prediction. 
 
 **Skills:** 
 
