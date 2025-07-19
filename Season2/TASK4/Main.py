@@ -1,38 +1,93 @@
-from langchain_openai import OpenAIEmbeddings
+import bs4
+from langchain import hub
+from langchain_community.document_loaders import WebBaseLoader
+from langchain_core.documents import Document
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langgraph.graph import START, StateGraph
+from typing_extensions import List, TypedDict
 from langchain.chat_models import init_chat_model
 from langchain_core.vectorstores import InMemoryVectorStore
 import os
+import getpass
 from dotenv import load_dotenv
 
 load_dotenv()
 
+os.environ["USER_AGENT"] = "MyNLPGeeksforgeeksRAG/1.0 (daudimujabi@gmail.com)"
 #load the hidden api key from the .env
-api_key = os.getenv("CHAT_API_KEY")  
+api_key = os.getenv("GOOGLE_API_KEY").getpass.getpass()
 
 if api_key is None:
-    raise ValueError("CHAT_API_KEY is not set in the .env file")
+   print("The api key for google germini is not found")
+   exit()
 
-#define and load the llm
-llm = init_chat_model("gpt-4o-2024-08-06", model_provider="openai")
+# #define and load the llm
+# llm = init_chat_model("gemini-2.0-flash", model_provider="google_genai")
 
+from langchain_google_genai import ChatGoogleGenerativeAI
+llm = ChatGoogleGenerativeAI(model="gemini-2.0-flash", google_api_key=api_key)
 #define embeddings
-embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
+
+embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=api_key)
 
 #select and define the vector store
 vector_store = InMemoryVectorStore(embeddings)
 
-#indexing and loading the dataset for the RAG
-#load the document
-import bs4
-from langchain_community.document_loaders import WebBaseLoader
-
-# Only keep post title, headers, and content from the full HTML.
-bs4_strainer = bs4.SoupStrainer(class_=("post-title", "post-header", "post-content"))
+#define the document loader
 loader = WebBaseLoader(
-    web_paths=("https://www.corpusdata.org/wikipedia.asp",),
-    bs_kwargs={"parse_only": bs4_strainer},
+    web_paths = ("https://www.geeksforgeeks.org/nlp/nlp-custom-corpus/",),
+    bs_kwargs = dict(
+        parse_only = bs4.SoupStrainer(
+            class_=("article-page_flex", "main_wrapper", "text","post-content", "post-title", "post-header") # the problem comes with the web base loader 
+        )
+    ),
 )
-docs = loader.load()
 
-assert len(docs) == 1
-print(f"Total characters: {len(docs[0].page_content)}")
+#load the document using the loader extension
+docs = loader.lazy_load()
+
+#split the texts using the recursive text splitter character for easy and clear access of content of the defined document
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size = 2000, chunk_overlap = 200
+)
+add_splits = text_splitter.split_documents(docs)
+
+#index chunks
+_= vector_store.add_documents(
+    documents = add_splits
+)
+
+#define the prompt
+prompt = hub.pull("rlm/rag-prompt")
+
+# define the state for the application
+class State(TypedDict) :
+    question: str
+    context: List[Document]
+    answer: str
+
+#define application steps -> convert into a message tool
+from langchain_core.tools import tool
+@tool(response_format= "content and artifact")
+def retrieve(query: str):
+    retrieved_docs = vector_store.similarity_search(query, k=2) #k is the number of the documents to return
+    serialized = "\n\n".join(
+        (f"Source: {doc.metadata} \n content: {doc.page_content}")
+        for doc in retrieved_docs
+    )
+    return serialized,retrieved_docs
+
+def generate(state: State):
+    docs_content = "\n\n".join(doc.page_content for doc in state["context"])
+    messages = prompt.invoke({"question" : state["question"], "context" : docs_content})
+    response = llm.invoke(messages)
+    return {"answer": response.content}
+
+#compile app application and test
+graph_builder = StateGraph(State).add_sequence([retrieve, generate])
+graph_builder.add_edge(START, "retrieve")
+graph = graph_builder.compile()
+
+response = graph.invoke({"question": "What do you understand by custom corpus in nlp"})
+print(response["answer"])
