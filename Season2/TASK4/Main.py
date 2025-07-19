@@ -76,7 +76,7 @@ def retrieve(query: str):
         (f"Source: {doc.metadata} \n content: {doc.page_content}")
         for doc in retrieved_docs
     )
-    return serialized,retrieved_docs
+    return serialized, retrieved_docs
 
 def generate(state: State):
     docs_content = "\n\n".join(doc.page_content for doc in state["context"])
