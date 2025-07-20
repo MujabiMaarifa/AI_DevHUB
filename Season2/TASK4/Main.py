@@ -5,17 +5,15 @@ from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langgraph.graph import START, StateGraph
 from typing_extensions import List, TypedDict
-from langchain.chat_models import init_chat_model
 from langchain_core.vectorstores import InMemoryVectorStore
 import os
-import getpass
 from dotenv import load_dotenv
 
 load_dotenv()
 
 os.environ["USER_AGENT"] = "MyNLPGeeksforgeeksRAG/1.0 (daudimujabi@gmail.com)"
 #load the hidden api key from the .env
-api_key = os.getenv("GOOGLE_API_KEY").getpass.getpass()
+api_key = os.getenv("GOOGLE_API_KEY")
 
 if api_key is None:
    print("The api key for google germini is not found")
@@ -39,7 +37,7 @@ loader = WebBaseLoader(
     web_paths = ("https://www.geeksforgeeks.org/nlp/nlp-custom-corpus/",),
     bs_kwargs = dict(
         parse_only = bs4.SoupStrainer(
-            class_=("article-page_flex", "main_wrapper", "text","post-content", "post-title", "post-header") # the problem comes with the web base loader 
+            class_=("article-page_flex", "main_wrapper", "text","post-content", "post-title", "post-header", "post-template-default") # the problem comes with the web base loader 
         )
     ),
 )
@@ -67,16 +65,10 @@ class State(TypedDict) :
     context: List[Document]
     answer: str
 
-#define application steps -> convert into a message tool
-from langchain_core.tools import tool
-@tool(response_format= "content and artifact")
-def retrieve(query: str):
-    retrieved_docs = vector_store.similarity_search(query, k=2) #k is the number of the documents to return
-    serialized = "\n\n".join(
-        (f"Source: {doc.metadata} \n content: {doc.page_content}")
-        for doc in retrieved_docs
-    )
-    return serialized, retrieved_docs
+# Define application steps
+def retrieve(state: State):
+    retrieved_docs = vector_store.similarity_search(state["question"])
+    return {"context": retrieved_docs}
 
 def generate(state: State):
     docs_content = "\n\n".join(doc.page_content for doc in state["context"])
@@ -89,5 +81,22 @@ graph_builder = StateGraph(State).add_sequence([retrieve, generate])
 graph_builder.add_edge(START, "retrieve")
 graph = graph_builder.compile()
 
-response = graph.invoke({"question": "What do you understand by custom corpus in nlp"})
-print(response["answer"])
+print("\n✨ EASY NLP and Corpus✨")
+print("Type your question below. Type 'exit' or 'quit' to end the conversation.\n")
+
+if __name__ == "__main__":
+    while True:
+        user_input = input("You🔍: ").strip()
+        greetings = {"hi", "hello", "hey", "how are you", "good morning", "good evening", "bonjour"}
+
+        if user_input.lower() in greetings:
+            print("Assistant🧠: Hello! How can I help you with NLP today?\n")
+            continue
+            
+        if user_input.lower() in ["exit", "quit", "bye"]:
+            print("Assistant🧠: Goodbye! Feel free to reach out for any queries...")
+            break
+
+        response = graph.invoke({"question": user_input})
+        print(f"Assistant🧠: {response['answer']}\n")
+
